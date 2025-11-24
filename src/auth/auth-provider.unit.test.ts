@@ -113,7 +113,7 @@ describe("GoogleAuthProvider", () => {
   });
 
   describe("lifecycle", () => {
-    it('registers the "Google" authentication provider', async () => {
+    it('registers the "google-cloud-platform" authentication provider', async () => {
       await authProvider.initialize();
       // Expect the provider-specific rejection surrounding the scopes not
       // matching the required set. This validates that the provider was
@@ -127,7 +127,7 @@ describe("GoogleAuthProvider", () => {
       ).to.eventually.be.rejectedWith(/scopes/);
     });
 
-    it('disposes the "Google" authentication provider', async () => {
+    it('disposes the "google-cloud-platform" authentication provider', async () => {
       authProvider.dispose();
 
       await expect(

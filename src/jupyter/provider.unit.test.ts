@@ -159,8 +159,8 @@ describe("ColabJupyterServerProvider", () => {
     it('registers the "Colab" Jupyter server collection', () => {
       sinon.assert.calledOnceWithExactly(
         jupyterStub.createJupyterServerCollection,
-        "colab",
-        "Colab",
+        "google-cloud-workbench",
+        "Google Cloud Workbench",
         serverProvider,
       );
     });

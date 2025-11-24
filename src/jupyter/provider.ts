@@ -38,10 +38,9 @@ import { AssignmentChangeEvent, AssignmentManager } from "./assignments";
  */
 export class ColabJupyterServerProvider
   implements
-    JupyterServerProvider,
-    JupyterServerCommandProvider,
-    vscode.Disposable
-{
+  JupyterServerProvider,
+  JupyterServerCommandProvider,
+  vscode.Disposable {
   readonly onDidChangeServers: vscode.Event<void>;
 
   private readonly serverCollection: JupyterServerCollection;
@@ -66,8 +65,8 @@ export class ColabJupyterServerProvider
       this.toggleAuthorizationState.bind(this)(),
     );
     this.serverCollection = jupyter.createJupyterServerCollection(
-      "colab",
-      "Colab",
+      "google-cloud-workbench",
+      "Google Cloud Workbench",
       this,
     );
     this.serverCollection.commandProvider = this;
