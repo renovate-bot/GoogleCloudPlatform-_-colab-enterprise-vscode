@@ -24,7 +24,6 @@ import { ServerKeepAliveController } from "./colab/keep-alive";
 import { ServerPicker } from "./colab/server-picker";
 import { CONFIG } from "./colab-config";
 import { Toggleable } from "./common/toggleable";
-import { getPackageInfo } from "./config/package-info";
 import { AssignmentManager } from "./jupyter/assignments";
 import { getJupyterApi } from "./jupyter/jupyter-extension";
 import { ColabJupyterServerProvider } from "./jupyter/provider";
@@ -42,7 +41,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   const authFlows = getOAuth2Flows(
     vscode,
-    getPackageInfo(context.extension),
     authClient,
   );
   const authProvider = new GoogleAuthProvider(
