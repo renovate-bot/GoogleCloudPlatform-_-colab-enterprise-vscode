@@ -6,7 +6,7 @@
 
 import { protos } from "@google-cloud/notebooks";
 import { JupyterServer } from "@vscode/jupyter-extension";
-import vscode, { Disposable } from "vscode";
+import vscode from "vscode";
 import { AUTHORIZATION_HEADER } from "../colab/headers";
 import { NotebooksClient } from "../workbench/notebooks-client";
 
@@ -14,12 +14,11 @@ import IInstance = protos.google.cloud.notebooks.v2.IInstance;
 
 const UNKNOWN_ID = "UNKNOWN_ID";
 const UNKNOWN_NAME = "UNKNOWN_NAME";
-const UNKNOWN_STATE = "UNKNOWN_STATE";
 
 export interface WorkbenchJupyterServer extends JupyterServer {
   name: string;
   projectId: string;
-  state: string;
+  /** The proxy URI for connecting to the Jupyter server. */
   proxyUri: string;
   connectionInformation?: {
     baseUrl: vscode.Uri;
@@ -44,8 +43,8 @@ export interface WorkbenchJupyterServer extends JupyterServer {
  *   Tokens) for these servers.
  * - Refreshing server state and connections on demand.
  */
-export class WorkbenchInstanceManager implements Disposable {
-  private workbenchServers: WorkbenchJupyterServer[] = [];
+export class WorkbenchInstanceManager {
+  private projectId?: string;
 
   /**
    * Creates a new instance of WorkbenchInstanceManager.
@@ -62,18 +61,12 @@ export class WorkbenchInstanceManager implements Disposable {
   ) {}
 
   /**
-   * Loads Workbench instances for a specific project.
-   *
-   * This method fetches instances from the Notebooks API, converts them into
-   * WorkbenchJupyterServer objects, and updates the internal list of servers.
+   * Sets the current GCP project ID.
    *
    * @param projectId - The ID of the GCP project.
    */
-  async loadWorkbenchServers(projectId: string) {
-    const instances = await this.notebooksClient.listInstances(projectId);
-    this.workbenchServers = instances.map((instance) =>
-      this.createWorkbenchJupyterServer(instance, projectId),
-    );
+  setProjectId(projectId: string) {
+    this.projectId = projectId;
   }
 
   /**
@@ -89,40 +82,27 @@ export class WorkbenchInstanceManager implements Disposable {
    * @throws If the server with the given ID no longer exists in the project.
    */
   async refreshConnection(
-    id: string,
-    projectId: string,
+    workbenchServer: WorkbenchJupyterServer,
   ): Promise<WorkbenchJupyterServer> {
-    const [accessToken] = await Promise.all([
-      this.getAccessToken(),
-      this.loadWorkbenchServers(projectId),
-    ]);
-    const server = this.workbenchServers.find((s) => s.id === id);
-
-    if (!server) {
-      throw new Error(
-        `Server with ID ${id} no longer exists in the project ${projectId}`,
-      );
-    }
-
-    return this.enrichServerWithConnectionInfo(server, accessToken);
+    const accessToken = await this.getAccessToken();
+    return this.enrichServerWithConnectionInfo(workbenchServer, accessToken);
   }
 
   /**
-   * Returns the list of currently loaded Workbench Jupyter servers.
+   * Returns the list of active only Workbench Jupyter servers.
    *
    * @returns An array of WorkbenchJupyterServer objects.
    */
-  getWorkbenchServers(): WorkbenchJupyterServer[] {
-    return this.workbenchServers;
-  }
+  async getWorkbenchServers(): Promise<WorkbenchJupyterServer[]> {
+    const { projectId } = this;
+    if (!projectId) {
+      return [];
+    }
 
-  /**
-   * Disposes of the resources held by the manager.
-   *
-   * Clears the internal list of Workbench servers.
-   */
-  dispose() {
-    this.workbenchServers = [];
+    const instances = await this.notebooksClient.listInstances(projectId);
+    return instances.map((instance) =>
+      this.createWorkbenchJupyterServer(instance, projectId),
+    );
   }
 
   /**
@@ -140,13 +120,11 @@ export class WorkbenchInstanceManager implements Disposable {
     const proxyUri = instance.proxyUri ?? "";
     const id = instance.id ?? UNKNOWN_ID;
     const name = instance.name?.split("/").pop() ?? UNKNOWN_NAME;
-    const state = instance.state?.toString() ?? UNKNOWN_STATE;
 
     return {
       id,
-      label: `${name} (${projectId}) [${state}]`,
+      label: `${name} (${projectId})`,
       name,
-      state,
       projectId,
       proxyUri,
     };

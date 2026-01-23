@@ -40,6 +40,7 @@ export class NotebooksClient {
   ): Promise<protos.google.cloud.notebooks.v2.IInstance[]> {
     const request = {
       parent: `projects/${projectId}/locations/-`,
+      filter: 'state="ACTIVE"',
     };
 
     const [instances] = await this.notebookServiceClient.listInstances(request);

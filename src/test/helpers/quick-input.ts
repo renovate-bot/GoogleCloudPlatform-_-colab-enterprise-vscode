@@ -31,9 +31,12 @@ export type QuickPickStub = sinon.SinonStubbedInstance<
     | "placeholder"
     | "items"
     | "activeItems"
+    | "selectedItems"
     | "buttons"
     | "onDidTriggerButton"
     | "onDidHide"
+    | "onDidAccept"
+    | "onDidChangeValue"
     | "onDidChangeSelection"
     | "show"
     | "dispose"
@@ -44,7 +47,7 @@ export function buildQuickPickStub(
   opts: {
     onDidTriggerButtonDisposeStub: sinon.SinonStubbedInstance<Disposable>;
     onDidHideDisposeStub: sinon.SinonStubbedInstance<Disposable>;
-    onDidChangeSelectionDisposeStub: sinon.SinonStubbedInstance<Disposable>;
+    onDidAcceptDisposeStub: sinon.SinonStubbedInstance<Disposable>;
   } = {
     onDidTriggerButtonDisposeStub: {
       dispose: sinon.stub(),
@@ -52,13 +55,17 @@ export function buildQuickPickStub(
     onDidHideDisposeStub: {
       dispose: sinon.stub(),
     },
-    onDidChangeSelectionDisposeStub: {
+    onDidAcceptDisposeStub: {
       dispose: sinon.stub(),
     },
   },
 ): QuickPickStub & { nextShow: () => Promise<void> } {
   const showStub: sinon.SinonStub<[], void> = sinon.stub();
-  return {
+  const onDidAccept = sinon
+    .stub<Listener, Disposable>()
+    .returns(opts.onDidAcceptDisposeStub);
+
+  const stub: QuickPickStub & { nextShow: () => Promise<void> } = {
     title: undefined,
     step: undefined,
     totalSteps: undefined,
@@ -66,6 +73,7 @@ export function buildQuickPickStub(
     placeholder: undefined,
     items: [],
     activeItems: [],
+    selectedItems: [],
     buttons: [],
     onDidTriggerButton: sinon
       .stub<Listener, Disposable>()
@@ -73,9 +81,9 @@ export function buildQuickPickStub(
     onDidHide: sinon
       .stub<Listener, Disposable>()
       .returns(opts.onDidHideDisposeStub),
-    onDidChangeSelection: sinon
-      .stub<Listener, Disposable>()
-      .returns(opts.onDidChangeSelectionDisposeStub),
+    onDidAccept,
+    onDidChangeValue: sinon.stub<Listener, Disposable>(),
+    onDidChangeSelection: sinon.stub<Listener, Disposable>(),
     show: showStub,
     dispose: sinon.stub(),
     /**
@@ -88,6 +96,14 @@ export function buildQuickPickStub(
         });
       }),
   };
+
+  // Magic yield to simulate acceptance on selection for tests
+  stub.onDidChangeSelection.yield = (items: QuickPickItem[]) => {
+    stub.selectedItems = items;
+    return stub.onDidAccept.yield();
+  };
+
+  return stub;
 }
 
 /**
