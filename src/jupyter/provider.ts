@@ -12,8 +12,9 @@ import {
   JupyterServerCommandProvider,
   JupyterServerCommand,
 } from "@vscode/jupyter-extension";
-import type { CancellationToken, ProviderResult } from "vscode";
+import type { CancellationToken } from "vscode";
 import vscode from "vscode";
+import { GoogleAuthProvider } from "../auth/auth-provider";
 import { WORKBENCH_COMMAND } from "../colab/commands/constants";
 import { selectProjectCommand } from "../workbench/commands";
 import { ProjectsClient } from "../workbench/projects-client";
@@ -103,11 +104,14 @@ export class WorkbenchJupyterServerProvider
   /**
    * Resolves the selected command.
    */
-  handleCommand(
+  async handleCommand(
     command: JupyterServerCommand,
     _token: CancellationToken,
-  ): ProviderResult<JupyterServer> {
+  ): Promise<JupyterServer | undefined> {
     if (command.label === WORKBENCH_COMMAND.label) {
+      // this is needed to open login popup if user doesn't have active session
+      // i.e. first login
+      await GoogleAuthProvider.getOrCreateSession(this.vs);
       return selectProjectCommand(
         this.vs,
         this.projectsClient,
