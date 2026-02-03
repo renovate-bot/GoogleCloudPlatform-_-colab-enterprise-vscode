@@ -19,7 +19,6 @@ import {
   VSBrowser,
   until,
 } from "vscode-extension-tester";
-import { CONFIG } from "../colab-config";
 
 const ELEMENT_WAIT_MS = 10000;
 const CELL_EXECUTION_WAIT_MS = 30000;
@@ -33,9 +32,8 @@ describe("Colab Extension", function () {
 
   before(async () => {
     assert.equal(
-      CONFIG.Environment,
       "production",
-      'Unexpected extension environment. Run `npm run generate:config` with COLAB_EXTENSION_ENVIRONMENT="production".',
+      "Unexpected extension environment. Run `npm run generate:config`",
     );
     // Wait for VS Code UI to settle before running tests.
     workbench = new Workbench();

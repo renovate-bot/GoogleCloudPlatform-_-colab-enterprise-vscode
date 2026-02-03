@@ -29,9 +29,8 @@ jobs:
     name: Generate Config
     runs-on: ubuntu-latest
     env:
-      COLAB_EXTENSION_ENVIRONMENT: "production"
-      COLAB_EXTENSION_CLIENT_ID: "client-id"
-      COLAB_EXTENSION_CLIENT_NOT_SO_SECRET: "client-not-so-secret"
+      WORKBENCH_EXTENSION_CLIENT_ID: "client-id"
+      WORKBENCH_EXTENSION_CLIENT_NOT_SO_SECRET: "client-not-so-secret"
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -45,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-config
-          path: src/colab-config.ts
+          path: src/config.ts
           if-no-files-found: error
 
   lint:
