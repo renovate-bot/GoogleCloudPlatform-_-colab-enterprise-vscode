@@ -23,14 +23,17 @@ on:
 env:
   # See supported Node.js release schedule at https://nodejs.org/en/about/releases
   NODE_VERSION: 22.x
+  TEST_ACCOUNT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL }}
+  TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
 
 jobs:
   generateConfig:
     name: Generate Config
     runs-on: ubuntu-latest
+    environment: Workbench
     env:
-      WORKBENCH_EXTENSION_CLIENT_ID: "client-id"
-      WORKBENCH_EXTENSION_CLIENT_NOT_SO_SECRET: "client-not-so-secret"
+      WORKBENCH_EXTENSION_CLIENT_ID: ${{ secrets.WORKBENCH_EXTENSION_CLIENT_ID }}
+      WORKBENCH_EXTENSION_CLIENT_NOT_SO_SECRET: ${{ secrets.WORKBENCH_EXTENSION_CLIENT_NOT_SO_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -120,3 +123,50 @@ jobs:
       - name: npm run test:integration
         if: matrix.os != 'ubuntu-latest'
         run: npm run test:integration
+
+  e2eTests:
+    name: VS Code E2E Tests
+    strategy:
+      matrix:
+        # macos-latest and windows-latest can be added as we work towards a release.
+        # For now, there's no sense acruing the cost of the runners.
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    environment: Workbench
+    needs: generateConfig
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci
+      - name: Download generated config
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-config
+          path: src
+      - name: npm run test:e2e:headless (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run test:e2e:headless
+        env:
+          SCREENSHOTS_DIR: /tmp/test-resources/screenshots/
+      - name: npm run test:e2e
+        if: matrix.os != 'ubuntu-latest'
+        run: npm run test:e2e
+        env:
+          SCREENSHOTS_DIR: /tmp/test-resources/screenshots/
+      - name: upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: /tmp/test-resources/screenshots/
+      - name: upload exthost.log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exthost log
+          path: /tmp/test-resources/settings/logs/*/window1/exthost/exthost.log

@@ -19,30 +19,35 @@ import {
   VSBrowser,
   until,
 } from 'vscode-extension-tester';
+import { CONFIG } from '../config';
 
-const ELEMENT_WAIT_MS = 10000;
-const CELL_EXECUTION_WAIT_MS = 30000;
+const ELEMENT_WAIT_MS = 60 * 1000;
+const CELL_EXECUTION_WAIT_MS = 30 * 1000;
+const AUTH_WAIT_MS = 1000;
 
-describe('Colab Extension', function () {
+describe('Workbench Extension', function () {
   dotenv.config();
 
   let driver: WebDriver;
   let testTitle: string;
   let workbench: Workbench;
 
+  beforeEach(function () {
+    testTitle = this.currentTest?.fullTitle() ?? '';
+  });
+
   before(async () => {
-    assert.equal(
-      'production',
-      'Unexpected extension environment. Run `npm run generate:config`',
+    assert.ok(CONFIG.ClientId, 'ClientId is not set');
+    assert.ok(CONFIG.ClientNotSoSecret, 'ClientNotSoSecret is not set');
+    assert.ok(process.env.TEST_ACCOUNT_EMAIL, 'TEST_ACCOUNT_EMAIL is not set');
+    assert.ok(
+      process.env.TEST_ACCOUNT_PASSWORD,
+      'TEST_ACCOUNT_PASSWORD is not set',
     );
     // Wait for VS Code UI to settle before running tests.
     workbench = new Workbench();
     driver = workbench.getDriver();
-    await driver.sleep(8000);
-  });
-
-  beforeEach(function () {
-    testTitle = this.currentTest?.fullTitle() ?? '';
+    await driver.sleep(ELEMENT_WAIT_MS);
   });
 
   describe('with a notebook', () => {
@@ -58,23 +63,31 @@ describe('Colab Extension', function () {
       await cell.sendKeys('1 + 1');
     });
 
-    it('authenticates and executes the notebook on a Colab server', async () => {
-      // Select the Colab server provider from the kernel selector.
+    it('authenticates and executes the notebook on a Workbench server', async () => {
+      // Select the Workbench server provider from the kernel selector.
       await workbench.executeCommand('Notebook: Select Notebook Kernel');
-      await selectQuickPickItem({
-        item: 'Colab',
-        quickPick: 'Select Another Kernel',
+      const selected = await selectAnyQuickPickItem({
+        items: ['Select Another Kernel...', 'Google Cloud Workbench'],
+        quickPick: 'Select Notebook Kernel',
       });
+
+      if (selected === 'Select Another Kernel...') {
+        await selectQuickPickItem({
+          item: 'Google Cloud Workbench',
+          quickPick: 'Select Another Kernel',
+        });
+      }
+
       await selectQuickPickItem({
-        item: 'New Colab Server',
+        item: 'Workbench',
         quickPick: 'Select a Jupyter Server',
       });
 
-      // Accept the dialog allowing the Colab extension to sign in using Google.
       await pushDialogButton({
         button: 'Allow',
-        dialog: "The extension 'Colab' wants to sign in using Google.",
+        dialog: "The extension 'Workbench' wants to sign in using Google.",
       });
+
       // Begin the sign-in process by copying the OAuth URL to the clipboard and
       // opening it in a browser window. Why do this instead of triggering the
       // "Open" button in the dialog? We copy the URL so that we can use a new
@@ -86,22 +99,32 @@ describe('Colab Extension', function () {
       });
       // TODO: Remove this dynamic import
       const clipboardy = await import('clipboardy');
+
+      await driver.sleep(AUTH_WAIT_MS);
+
       await doOauthSignIn(/* oauthUrl= */ clipboardy.default.readSync());
 
-      // Now that we're authenticated, we can resume creating a Colab server via
-      // the open kernel selector.
+      // Now that we're authenticated, we can resume selecting GCP project for
+      // the Workbench notebook server.
       await selectQuickPickItem({
-        item: 'CPU',
-        quickPick: 'Select a variant (1/2)',
+        item: 'jaas-test-notebooks-host',
+        quickPick: 'Select a Google Cloud Project (1/2)',
       });
+
       // Alias the server with the default name.
       const inputBox = await InputBox.create();
       await inputBox.sendKeys(Key.ENTER);
       await selectQuickPickItem({
-        item: 'Python 3 (ipykernel)',
-        quickPick: 'Select a Kernel from Colab CPU',
+        item: 'workbench-vs-code-plugin (jaas-test-notebooks-host)',
+        quickPick: 'Select a Jupyter Server',
       });
 
+      await selectQuickPickItem({
+        item: 'TensorFlow 2-11',
+        quickPick: 'Select a Kernel',
+      });
+
+      await driver.sleep(ELEMENT_WAIT_MS);
       // Execute the notebook and poll for the success indicator (green check).
       // Why not the cell output? Because the output is rendered in a webview.
       await workbench.executeCommand('Notebook: Run All');
@@ -118,6 +141,36 @@ describe('Colab Extension', function () {
     });
   });
 
+  async function selectAnyQuickPickItem({
+    items,
+    quickPick,
+  }: {
+    items: string[];
+    quickPick: string;
+  }): Promise<string> {
+    return driver.wait(
+      async () => {
+        const inputBox = await InputBox.create();
+        const picks = await inputBox.getQuickPicks();
+        for (const pick of picks) {
+          const text = await pick.getText();
+          for (const item of items) {
+            if (text.includes(item)) {
+              await pick.select();
+              console.log(
+                `Selection of "${item}" completed (promise resolved).`,
+              );
+              return item;
+            }
+          }
+        }
+        return '';
+      },
+      ELEMENT_WAIT_MS,
+      `Selecting any of "${items.join(', ')}" for QuickPick "${quickPick}" failed`,
+    );
+  }
+
   /**
    * Selects the QuickPick option.
    */
@@ -127,29 +180,9 @@ describe('Colab Extension', function () {
   }: {
     item: string;
     quickPick: string;
-  }) {
-    return driver.wait(
-      async () => {
-        try {
-          const inputBox = await InputBox.create();
-          // We check for the item's presence before selecting it, since
-          // InputBox.selectQuickPick will not throw if the item is not found.
-          const quickPickItem = await inputBox.findQuickPick(item);
-          if (!quickPickItem) {
-            return false;
-          }
-          await quickPickItem.select();
-          return true;
-        } catch (_) {
-          // Swallow errors since we want to fail when our timeout's reached.
-          return false;
-        }
-      },
-      ELEMENT_WAIT_MS,
-      `Select "${item}" item for QuickPick "${quickPick}" failed`,
-    );
+  }): Promise<string> {
+    return selectAnyQuickPickItem({ items: [item], quickPick });
   }
-
   /**
    * Pushes a button in a modal dialog and waits for the action to complete.
    */
@@ -207,7 +240,7 @@ describe('Colab Extension', function () {
       await passwordInput.sendKeys(process.env.TEST_ACCOUNT_PASSWORD ?? '');
       await passwordInput.sendKeys(Key.ENTER);
 
-      // Click Continue to sign in to Colab.
+      // Click Continue to sign in to Workbench.
       await oauthDriver.wait(
         until.urlContains('accounts.google.com/signin/oauth/id'),
         ELEMENT_WAIT_MS,
@@ -229,7 +262,7 @@ describe('Colab Extension', function () {
 
       // Check that the test account's authenticated. Close the browser window.
       await oauthDriver.wait(
-        until.urlContains('vscode/auth-success'),
+        until.urlContains('https://cloud.google.com/vertex-ai-notebooks'),
         ELEMENT_WAIT_MS,
       );
       await oauthDriver.quit();
@@ -287,10 +320,28 @@ async function waitAndClick(
   errorMsg: string,
 ): Promise<void> {
   await driver.wait(
-    until.elementIsVisible(await driver.findElement(locator)),
+    async () => {
+      try {
+        const element = await driver.findElement(locator);
+        await driver.wait(
+          until.elementIsVisible(element),
+          ELEMENT_WAIT_MS,
+          `Element located but not visible: ${errorMsg}`,
+        );
+        await element.click();
+        return true;
+      } catch (e: unknown) {
+        if (
+          e instanceof Error &&
+          (e.name === 'StaleElementReferenceError' ||
+            e.name === 'ElementClickInterceptedError')
+        ) {
+          return false;
+        }
+        throw e;
+      }
+    },
     ELEMENT_WAIT_MS,
     errorMsg,
   );
-  const element = await driver.findElement(locator);
-  await element.click();
 }
