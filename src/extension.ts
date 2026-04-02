@@ -11,6 +11,7 @@ import { getOAuth2Flow } from './auth/flows/flows';
 import { login } from './auth/login';
 import { AuthStorage } from './auth/storage';
 import { CONFIG } from './config';
+import { ConnectionManager } from './jupyter/connection-manager';
 import { getJupyterApi } from './jupyter/jupyter-extension';
 import { WorkbenchJupyterServerProvider } from './jupyter/provider';
 import { WorkbenchInstanceManager } from './jupyter/workbench-instance-manager';
@@ -38,6 +39,13 @@ export async function activate(context: vscode.ExtensionContext) {
   const notebooksClient = new NotebooksClient(authClient);
   const projectsClient = new ProjectsClient(authClient);
 
+  const serverChangeEmitter = new vscode.EventEmitter<void>();
+
+  const connectionManager = new ConnectionManager(
+    authProvider.onDidChangeSessions,
+    serverChangeEmitter,
+  );
+
   const workbenchServerProvider = new WorkbenchJupyterServerProvider(
     vscode,
     authProvider.onDidChangeSessions,
@@ -48,8 +56,15 @@ export async function activate(context: vscode.ExtensionContext) {
       ),
     ),
     jupyter,
+    connectionManager,
+    serverChangeEmitter,
   );
 
   await authProvider.initialize();
-  context.subscriptions.push(authFlow, authProvider, workbenchServerProvider);
+  context.subscriptions.push(
+    authFlow,
+    authProvider,
+    workbenchServerProvider,
+    serverChangeEmitter,
+  );
 }

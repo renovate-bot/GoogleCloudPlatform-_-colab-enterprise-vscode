@@ -18,6 +18,7 @@ import { TestEventEmitter } from '../test/helpers/events';
 import { newVsCodeStub, VsCodeStub } from '../test/helpers/vscode';
 import { WORKBENCH_COMMAND } from '../workbench/constants';
 import { ProjectsClient } from '../workbench/projects-client';
+import { ConnectionManager } from './connection-manager';
 import { WorkbenchJupyterServerProvider } from './provider';
 import {
   WorkbenchInstanceManager,
@@ -35,6 +36,8 @@ describe('WorkbenchJupyterServerProvider', () => {
 
   let projectsClientStub: SinonStubbedInstance<ProjectsClient>;
   let instanceManagerStub: SinonStubbedInstance<WorkbenchInstanceManager>;
+  let connectionManagerStub: SinonStubbedInstance<ConnectionManager>;
+  let serverChangeEmitter: vscode.EventEmitter<void>;
   let serverProvider: WorkbenchJupyterServerProvider;
   let authEventEmitter: TestEventEmitter<AuthChangeEvent>;
 
@@ -83,6 +86,15 @@ describe('WorkbenchJupyterServerProvider', () => {
     projectsClientStub = sinon.createStubInstance(ProjectsClient);
     projectsClientStub.getProjects.resolves([]);
     instanceManagerStub = sinon.createStubInstance(WorkbenchInstanceManager);
+    connectionManagerStub = sinon.createStubInstance(ConnectionManager);
+    serverChangeEmitter = new TestEventEmitter<void>();
+
+    vsCodeStub.authentication.getSession = sinon.stub().resolves({
+      id: 'mock-session-id',
+      accessToken: 'mock-access-token',
+      account: { id: 'mock-account-id', label: 'Mock Account' },
+      scopes: [],
+    });
 
     vsCodeStub.authentication.getSession = sinon.stub().resolves({
       id: 'mock-session-id',
@@ -97,6 +109,8 @@ describe('WorkbenchJupyterServerProvider', () => {
       projectsClientStub,
       instanceManagerStub,
       jupyterStub as unknown as Jupyter,
+      connectionManagerStub as unknown as ConnectionManager,
+      serverChangeEmitter,
     );
 
     // Simulate login
@@ -153,6 +167,22 @@ describe('WorkbenchJupyterServerProvider', () => {
       const result =
         await serverProvider.provideJupyterServers(cancellationToken);
       expect(result).to.deep.equal([]);
+    });
+
+    it('calls preventReconnectionAttempt when not authorized', async () => {
+      // Simulate logout
+      authEventEmitter.fire({
+        added: [],
+        removed: [],
+        changed: [],
+        hasValidSession: false,
+      });
+
+      const result =
+        await serverProvider.provideJupyterServers(cancellationToken);
+
+      expect(result).to.deep.equal([]);
+      sinon.assert.calledOnce(connectionManagerStub.preventReconnectionAttempt);
     });
   });
 
