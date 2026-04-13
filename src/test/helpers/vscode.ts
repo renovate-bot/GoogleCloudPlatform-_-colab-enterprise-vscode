@@ -36,6 +36,12 @@ enum QuickPickItemKind {
   Default = 0,
 }
 
+enum ConfigurationTarget {
+  Global = 1,
+  Workspace = 2,
+  WorkspaceFolder = 3,
+}
+
 enum ExtensionMode {
   Production = 1,
   Development = 2,
@@ -51,6 +57,7 @@ export interface VsCodeStub {
   CancellationTokenSource: typeof TestCancellationTokenSource;
   EventEmitter: typeof TestEventEmitter;
   QuickPickItemKind: typeof QuickPickItemKind;
+  ConfigurationTarget: typeof ConfigurationTarget;
   commands: {
     executeCommand: sinon.SinonStubbedMember<
       typeof vscode.commands.executeCommand
@@ -132,21 +139,22 @@ export function newVsCodeStub(): VsCodeStub {
         commands: { ...this.commands } as Partial<
           typeof vscode.commands
         > as typeof vscode.commands,
+        workspace: { ...this.workspace } as Partial<
+          typeof vscode.workspace
+        > as typeof vscode.workspace,
         extensions: { ...this.extensions } as Partial<
           typeof vscode.extensions
         > as typeof vscode.extensions,
         authentication: { ...this.authentication } as Partial<
           typeof vscode.authentication
         > as typeof vscode.authentication,
-        workspace: { ...this.workspace } as Partial<
-          typeof vscode.workspace
-        > as typeof vscode.workspace,
       } as Partial<typeof vscode> as typeof vscode;
     },
     Uri: TestUri,
     CancellationTokenSource: TestCancellationTokenSource,
     EventEmitter: TestEventEmitter,
     QuickPickItemKind: QuickPickItemKind,
+    ConfigurationTarget: ConfigurationTarget,
     commands: {
       executeCommand: sinon.stub(),
     },
