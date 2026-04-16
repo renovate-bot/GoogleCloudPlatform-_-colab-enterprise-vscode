@@ -107,7 +107,7 @@ export function initializeLogger(
   });
 
   // Create the output channel once.
-  const outputChannel = vs.window.createOutputChannel('Workbench');
+  const outputChannel = vs.window.createOutputChannel('Workbench Notebooks');
   loggers.push(new OutputChannelLogger(outputChannel));
 
   if (context.extensionMode === vs.ExtensionMode.Development) {
@@ -119,7 +119,7 @@ export function initializeLogger(
   log.info(`Visual Studio Code: ${vs.version}`);
   log.info(`Remote: ${vs.env.remoteName ?? 'local'}`);
   log.info(
-    `Workbench extension version: ${(context.extension.packageJSON as { version: string }).version}`,
+    `Workbench Notebooks extension version: ${(context.extension.packageJSON as { version: string }).version}`,
   );
 
   return {

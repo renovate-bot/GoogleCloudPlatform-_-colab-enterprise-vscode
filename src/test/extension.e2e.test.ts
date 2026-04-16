@@ -25,7 +25,7 @@ const ELEMENT_WAIT_MS = 60 * 1000;
 const CELL_EXECUTION_WAIT_MS = 30 * 1000;
 const AUTH_WAIT_MS = 1000;
 
-describe('Workbench Extension', function () {
+describe('Workbench Notebooks Extension', function () {
   dotenv.config();
 
   let driver: WebDriver;
@@ -89,7 +89,8 @@ describe('Workbench Extension', function () {
 
       await pushDialogButton({
         button: 'Allow',
-        dialog: "The extension 'Workbench' wants to sign in using Google.",
+        dialog:
+          "The extension 'Workbench Notebooks' wants to sign in using Google.",
       });
 
       // Begin the sign-in process by copying the OAuth URL to the clipboard and

@@ -1,8 +1,8 @@
 {
-  "name": "workbench",
+  "name": "workbench-notebooks",
   "publisher": "googlecloudtools",
-  "displayName": "Workbench",
-  "description": "Connect notebooks to Vertex AI Workbench instances.",
+  "displayName": "Workbench Notebooks",
+  "description": "Connect notebooks to Workbench instances.",
   "icon": "icon.png",
   "version": "0.1.0",
   "pricing": "Free",
@@ -46,9 +46,9 @@
       }
     ],
     "configuration": {
-      "title": "Workbench",
+      "title": "Workbench Notebooks",
       "properties": {
-        "workbench.logging.level": {
+        "workbench-notebooks.logging.level": {
           "type": "string",
           "default": "info",
           "enum": [
@@ -58,7 +58,7 @@
             "info",
             "debug"
           ],
-          "description": "Controls the verbosity of logs. These can be found in the 'Workbench' output channel."
+          "description": "Controls the verbosity of logs. These can be found in the 'Workbench Notebooks' output channel."
         }
       }
     }
